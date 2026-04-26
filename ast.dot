@@ -1,0 +1,24 @@
+digraph AST {
+node [shape=box];
+node00C81758[label="PROGRAM\nprogram"];
+node00C81758 -> node00C817E8 [label="body"];
+node00C817E8[label="FUNCTION\nmain"];
+node00C817E8 -> node00C81878 [label="body"];
+node00C81878[label="BLOCK\nblock"];
+node00C81878 -> node00C81908 [label="body"];
+node00C81908[label="VAR_DECL\nx"];
+node00C81878 -> node00C81998 [label="body"];
+node00C81998[label="ASSIGN\nx"];
+node00C81998 -> node00C81A28 [label="left"];
+node00C81A28[label="IDENTIFIER\nx"];
+node00C81998 -> node00C81AB8 [label="right"];
+node00C81AB8[label="INT_LIT\n2"];
+node00C81878 -> node00C81B48 [label="body"];
+node00C81B48[label="PRINT\nprint"];
+node00C81B48 -> node00C860E0 [label="left"];
+node00C860E0[label="IDENTIFIER\nx"];
+node00C81878 -> node00C86170 [label="body"];
+node00C86170[label="RETURN\nreturn"];
+node00C86170 -> node00C86200 [label="left"];
+node00C86200[label="INT_LIT\n0"];
+}

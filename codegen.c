@@ -3,19 +3,28 @@
 #include <string.h>
 #include "codegen.h"
 
-/* ─────────────────────────────────────────────
-   Helpers
-   ───────────────────────────────────────────── */
 
+
+// static char *newTemp(CodeGen *cg) {
+//     static char buf[32];
+//     snprintf(buf, sizeof(buf), "t%d", ++cg->tempCount);
+//     return buf;
+// }
+
+// static char *newLabel(CodeGen *cg) {
+//     static char buf[32];
+//     snprintf(buf, sizeof(buf), "L%d", ++cg->labelCount);
+//     return buf;
+// }
 static char *newTemp(CodeGen *cg) {
-    static char buf[32];
-    snprintf(buf, sizeof(buf), "t%d", ++cg->tempCount);
+    char *buf = (char *)malloc(32);
+    sprintf(buf, "t%d", ++cg->tempCount);
     return buf;
 }
 
 static char *newLabel(CodeGen *cg) {
-    static char buf[32];
-    snprintf(buf, sizeof(buf), "L%d", ++cg->labelCount);
+    char *buf = (char *)malloc(32);
+    sprintf(buf, "L%d", ++cg->labelCount);
     return buf;
 }
 
@@ -30,16 +39,12 @@ static void emit(CodeGen *cg, TACInstr *instr) {
     else           { cg->tail->next = instr; cg->tail = instr; }
 }
 
-/* ─────────────────────────────────────────────
-   Forward declarations
-   ───────────────────────────────────────────── */
+
 static char *genExpr(CodeGen *cg, ASTNode *node, char *out);
 static void  genStmt(CodeGen *cg, ASTNode *node);
 static void  genBlock(CodeGen *cg, ASTNode *block);
 
-/* ─────────────────────────────────────────────
-   Expression → TAC  (returns temp / literal holding the result)
-   ───────────────────────────────────────────── */
+
 
 static char *genExpr(CodeGen *cg, ASTNode *node, char *out) {
     if (!node) { if (out) strcpy(out, "0"); return out; }
@@ -89,16 +94,13 @@ static char *genExpr(CodeGen *cg, ASTNode *node, char *out) {
     }
 }
 
-/* ─────────────────────────────────────────────
-   Statement → TAC
-   ───────────────────────────────────────────── */
+
 
 static void genStmt(CodeGen *cg, ASTNode *node) {
     if (!node) return;
 
     switch (node->type) {
 
-        /* ----- var decl with optional init ----- */
         case NODE_VAR_DECL: {
             if (node->left) {
                 char rhs[64];
@@ -111,7 +113,7 @@ static void genStmt(CodeGen *cg, ASTNode *node) {
             break;
         }
 
-        /* ----- assignment ----- */
+        
         case NODE_ASSIGN: {
             char rhs[64];
             genExpr(cg, node->right, rhs);
@@ -123,55 +125,105 @@ static void genStmt(CodeGen *cg, ASTNode *node) {
         }
 
         /* ----- if / if-else ----- */
+        // case NODE_IF: {
+        //     char condBuf[64];
+        //     genExpr(cg, node->condition, condBuf);
+
+        //     char *lFalse = newLabel(cg);
+        //     char *lEnd   = newLabel(cg);
+
+        //     /* if_false cond goto lFalse */
+        //     TACInstr *jmp = newInstr(TAC_IF_FALSE);
+        //     strcpy(jmp->arg1,   condBuf);
+        //     strcpy(jmp->result, lFalse);
+        //     emit(cg, jmp);
+
+        //     genBlock(cg, node->thenBranch);
+
+        //     if (node->elseBranch) {
+        //         /* goto lEnd */
+        //         TACInstr *g = newInstr(TAC_GOTO);
+        //         strcpy(g->result, lEnd);
+        //         emit(cg, g);
+
+        //         /* lFalse: */
+        //         TACInstr *lf = newInstr(TAC_LABEL);
+        //         strcpy(lf->result, lFalse);
+        //         emit(cg, lf);
+
+        //         if (node->elseBranch->type == NODE_IF)
+        //             genStmt(cg, node->elseBranch);
+        //         else
+        //             genBlock(cg, node->elseBranch);
+
+        //         /* lEnd: */
+        //         TACInstr *le = newInstr(TAC_LABEL);
+        //         strcpy(le->result, lEnd);
+        //         emit(cg, le);
+        //     } else {
+        //         /* lFalse == lEnd */
+        //         TACInstr *lf = newInstr(TAC_LABEL);
+        //         strcpy(lf->result, lFalse);
+        //         emit(cg, lf);
+        //         (void)lEnd;
+        //     }
+        //     break;
+        // }
+
         case NODE_IF: {
-            char condBuf[64];
-            genExpr(cg, node->condition, condBuf);
+    char condBuf[64];
+    genExpr(cg, node->condition, condBuf);
 
-            char *lFalse = newLabel(cg);
-            char *lEnd   = newLabel(cg);
+    
+    char lFalse[32], lEnd[32];
+    snprintf(lFalse, sizeof(lFalse), "L%d", ++cg->labelCount);
+    snprintf(lEnd,   sizeof(lEnd),   "L%d", ++cg->labelCount);
 
-            /* if_false cond goto lFalse */
-            TACInstr *jmp = newInstr(TAC_IF_FALSE);
-            strcpy(jmp->arg1,   condBuf);
-            strcpy(jmp->result, lFalse);
-            emit(cg, jmp);
+    /* if_false cond goto lFalse */
+    TACInstr *jmp = newInstr(TAC_IF_FALSE);
+    strcpy(jmp->arg1,   condBuf);
+    strcpy(jmp->result, lFalse);
+    emit(cg, jmp);
 
-            genBlock(cg, node->thenBranch);
+    genBlock(cg, node->thenBranch);
 
-            if (node->elseBranch) {
-                /* goto lEnd */
-                TACInstr *g = newInstr(TAC_GOTO);
-                strcpy(g->result, lEnd);
-                emit(cg, g);
+    if (node->elseBranch) {
+        /* goto lEnd */
+        TACInstr *g = newInstr(TAC_GOTO);
+        strcpy(g->result, lEnd);
+        emit(cg, g);
 
-                /* lFalse: */
-                TACInstr *lf = newInstr(TAC_LABEL);
-                strcpy(lf->result, lFalse);
-                emit(cg, lf);
+        /* lFalse: */
+        TACInstr *lf = newInstr(TAC_LABEL);
+        strcpy(lf->result, lFalse);
+        emit(cg, lf);
 
-                if (node->elseBranch->type == NODE_IF)
-                    genStmt(cg, node->elseBranch);
-                else
-                    genBlock(cg, node->elseBranch);
+        if (node->elseBranch->type == NODE_IF)
+            genStmt(cg, node->elseBranch);
+        else
+            genBlock(cg, node->elseBranch);
 
-                /* lEnd: */
-                TACInstr *le = newInstr(TAC_LABEL);
-                strcpy(le->result, lEnd);
-                emit(cg, le);
-            } else {
-                /* lFalse == lEnd */
-                TACInstr *lf = newInstr(TAC_LABEL);
-                strcpy(lf->result, lFalse);
-                emit(cg, lf);
-                (void)lEnd;
-            }
-            break;
-        }
+        /* lEnd: */
+        TACInstr *le = newInstr(TAC_LABEL);
+        strcpy(le->result, lEnd);
+        emit(cg, le);
+    } else {
+        /* no else — lFalse is the end */
+        TACInstr *lf = newInstr(TAC_LABEL);
+        strcpy(lf->result, lFalse);
+        emit(cg, lf);
+    }
+    break;
+}
 
         /* ----- while ----- */
+        // case NODE_WHILE: {
+        //     char *lStart = newLabel(cg);
+        //     char *lEnd   = newLabel(cg);
         case NODE_WHILE: {
-            char *lStart = newLabel(cg);
-            char *lEnd   = newLabel(cg);
+            char lStart[32], lEnd[32];
+            snprintf(lStart, sizeof(lStart), "L%d", ++cg->labelCount);
+            snprintf(lEnd,   sizeof(lEnd),   "L%d", ++cg->labelCount);
 
             /* lStart: */
             TACInstr *ls = newInstr(TAC_LABEL);

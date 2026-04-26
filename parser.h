@@ -51,5 +51,7 @@ Parser  *createParser(FILE *fp);
 ASTNode *parse(Parser *p);
 void     printAST(ASTNode *node, int depth);
 void     freeAST(ASTNode *node);
+void writeDOT(ASTNode *root);
+void generateDOT(ASTNode *root, FILE *fp);
 
 #endif /* PARSER_H */

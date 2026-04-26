@@ -26,5 +26,6 @@ typedef struct {
 SemanticAnalyser *createSemanticAnalyser(void);
 void              analyseProgram(SemanticAnalyser *sa, ASTNode *root);
 void              freeSemanticAnalyser(SemanticAnalyser *sa);
+void printSymbolTable(SemanticAnalyser *sa);
 
 #endif /* SEMANTIC_H */

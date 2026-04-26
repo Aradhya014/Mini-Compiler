@@ -71,9 +71,13 @@ static void analyseExpr(SemanticAnalyser *sa, ASTNode *node) {
         case NODE_IDENTIFIER: {
             Symbol *s = lookupSymbol(sa, node->value);
             if (!s) {
-                fprintf(stderr,
-                    "[Semantic Error] Line %d: Undeclared variable '%s'\n",
-                    node->line, node->value);
+                // fprintf(stderr,
+                //     "[Semantic Error] Line %d: Undeclared variable '%s'\n",
+                //     node->line, node->value);
+                // sa->errorCount++;
+                printf("ERROR: Undeclared variable '%s' at line %d\n",
+                    node->value, node->line);
+                printf("SOLUTION: Declare the variable before using it.\n\n");
                 sa->errorCount++;
             } else {
                 s->used = 1;
@@ -113,52 +117,112 @@ static void analyseStmt(SemanticAnalyser *sa, ASTNode *node) {
 
     switch (node->type) {
 
+        // case NODE_VAR_DECL: {
+        //     /* Check for redeclaration */
+        //     Symbol *existing = lookupSymbol(sa, node->value);
+        //     if (existing) {
+        //         fprintf(stderr,
+        //             "[Semantic Error] Line %d: Redeclaration of variable '%s'"
+        //             " (first declared at line %d)\n",
+        //             node->line, node->value, existing->declaredLine);
+        //         sa->errorCount++;
+        //     } else {
+        //         /* Determine type from initialiser or default to int */
+        //         SymbolType symT = SYM_INT;
+        //         if (node->left) {
+        //             symT = inferType(sa, node->left);
+        //             analyseExpr(sa, node->left);
+        //         }
+        //         insertSymbol(sa, node->value, symT, node->line);
+        //         printf("  [Sym] Declared %-12s  type: %s  line: %d\n",
+        //                node->value,
+        //                symT == SYM_FLOAT ? "float" : "int",
+        //                node->line);
+        //     }
+        //     break;
+        // }
         case NODE_VAR_DECL: {
-            /* Check for redeclaration */
             Symbol *existing = lookupSymbol(sa, node->value);
+
             if (existing) {
-                fprintf(stderr,
-                    "[Semantic Error] Line %d: Redeclaration of variable '%s'"
-                    " (first declared at line %d)\n",
-                    node->line, node->value, existing->declaredLine);
+                printf("[Semantic Error] Line %d: Redeclaration of '%s'\n",
+                    node->line, node->value);
                 sa->errorCount++;
             } else {
-                /* Determine type from initialiser or default to int */
                 SymbolType symT = SYM_INT;
+
                 if (node->left) {
-                    symT = inferType(sa, node->left);
+                    SymbolType rhs = inferType(sa, node->left);
+
+                    // 🔥 ADD THIS CHECK
+                    if (rhs == SYM_FLOAT) {
+                        printf("[Semantic Warning] Line %d: Assigning float to int '%s'\n",
+                            node->line, node->value);
+                        sa->warningCount++;
+                    }
+
+                    symT = rhs;
                     analyseExpr(sa, node->left);
                 }
+
                 insertSymbol(sa, node->value, symT, node->line);
-                printf("  [Sym] Declared %-12s  type: %s  line: %d\n",
-                       node->value,
-                       symT == SYM_FLOAT ? "float" : "int",
-                       node->line);
             }
+
             break;
         }
 
+        // case NODE_ASSIGN: {
+        //     Symbol *s = lookupSymbol(sa, node->left->value);
+        //     if (!s) {
+        //         fprintf(stderr,
+        //             "[Semantic Error] Line %d: Assignment to undeclared"
+        //             " variable '%s'\n",
+        //             node->line, node->left->value);
+        //         sa->errorCount++;
+        //     } else {
+        //         s->used = 1;
+        //         SymbolType rType = inferType(sa, node->right);
+        //         /* Implicit int → float is fine; warn on float → int */
+        //         if (s->symType == SYM_INT && rType == SYM_FLOAT) {
+        //             fprintf(stderr,
+        //                 "[Semantic Warning] Line %d: Implicit float-to-int"
+        //                 " conversion for '%s'\n",
+        //                 node->line, node->left->value);
+        //             sa->warningCount++;
+        //         }
+        //     }
+        //     analyseExpr(sa, node->right);
+        //     break;
+        // }
+
         case NODE_ASSIGN: {
+        // 1. Check RHS expression first
+            analyseExpr(sa, node->right);
+
+            // 2. Get LHS symbol (variable)
             Symbol *s = lookupSymbol(sa, node->left->value);
+
             if (!s) {
-                fprintf(stderr,
-                    "[Semantic Error] Line %d: Assignment to undeclared"
-                    " variable '%s'\n",
+                printf("[Semantic Error] Line %d: Undeclared variable '%s'\n",
                     node->line, node->left->value);
                 sa->errorCount++;
-            } else {
-                s->used = 1;
-                SymbolType rType = inferType(sa, node->right);
-                /* Implicit int → float is fine; warn on float → int */
-                if (s->symType == SYM_INT && rType == SYM_FLOAT) {
-                    fprintf(stderr,
-                        "[Semantic Warning] Line %d: Implicit float-to-int"
-                        " conversion for '%s'\n",
-                        node->line, node->left->value);
-                    sa->warningCount++;
-                }
+                return;
             }
-            analyseExpr(sa, node->right);
+
+            // 3. Get types
+            SymbolType lhs = s->symType;
+            SymbolType rhs = inferType(sa, node->right);
+
+            // 4. 🔥 ADD THIS CHECK HERE
+            if (lhs != rhs) {
+                printf("[Semantic Warning] Line %d: Type mismatch (%s <- %s)\n",
+                    node->line,
+                    lhs == SYM_INT ? "int" : "float",
+                    rhs == SYM_INT ? "int" : "float");
+
+                sa->warningCount++;
+            }
+
             break;
         }
 
@@ -239,4 +303,19 @@ void freeSemanticAnalyser(SemanticAnalyser *sa) {
     Symbol *s = sa->table;
     while (s) { Symbol *nx = s->next; free(s); s = nx; }
     free(sa);
+}
+
+void printSymbolTable(SemanticAnalyser *sa) {
+    printf("\n===== SYMBOL TABLE =====\n");
+    printf("Name\tType\tLine\tUsed\n");
+
+    Symbol *s = sa->table;
+    while (s) {
+        printf("%s\t%s\t%d\t%s\n",
+               s->name,
+               s->symType == SYM_INT ? "int" : "float",
+               s->declaredLine,
+               s->used ? "yes" : "no");
+        s = s->next;
+    }
 }
